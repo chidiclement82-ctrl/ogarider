@@ -24,8 +24,8 @@ Copy `.env.example` to `.env.local` and fill it in:
 - `PAYSTACK_SECRET_KEY` — from the Paystack dashboard. Without it, development shows a payment
   simulator and production refuses online payment.
 - `APP_URL` — the public address of the app, used for the payment return link.
-- `ADMIN_EMAIL` / `ADMIN_PASSWORD` — your real admin account, created when the database is first
-  set up (delete `data` and restart to apply).
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` — your real admin account, applied every time the app
+  starts. Change `ADMIN_PASSWORD` and restart to reset the password.
 
 In the Paystack dashboard, set the webhook URL to `<APP_URL>/api/paystack/webhook`.
 

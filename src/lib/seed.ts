@@ -1,5 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
-import { hashPassword } from "./password";
+import { hashPassword, verifyPassword } from "./password";
 
 // Demo accounts, created the first time the database is opened.
 // Every seeded demo account uses DEMO_PASSWORD.
@@ -143,6 +143,30 @@ const RESTAURANTS: SeedRestaurant[] = [
   },
 ];
 
+/**
+ * Makes sure the admin from ADMIN_EMAIL / ADMIN_PASSWORD exists with that password.
+ * Runs at every start, so the variables can be added or changed after the first
+ * deploy, and changing ADMIN_PASSWORD is how a forgotten admin password is reset.
+ */
+export function ensureAdmin(conn: DatabaseSync) {
+  const email = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.ADMIN_PASSWORD;
+  if (!email || !password) return;
+
+  const existing = conn
+    .prepare("SELECT id, role, password_hash FROM users WHERE email = ?")
+    .get(email) as { id: number; role: string; password_hash: string } | undefined;
+  if (!existing) {
+    conn
+      .prepare("INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'admin')")
+      .run("Admin", email, hashPassword(password));
+  } else if (existing.role !== "admin" || !verifyPassword(password, existing.password_hash)) {
+    conn
+      .prepare("UPDATE users SET role = 'admin', password_hash = ? WHERE id = ?")
+      .run(hashPassword(password), existing.id);
+  }
+}
+
 export function seed(conn: DatabaseSync) {
   const addUser = conn.prepare(
     "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)",
@@ -160,12 +184,6 @@ export function seed(conn: DatabaseSync) {
   const passwordHash = hashPassword(DEMO_PASSWORD);
 
   conn.exec("BEGIN");
-
-  // A real admin account, when ADMIN_EMAIL and ADMIN_PASSWORD are set in .env.local.
-  const { ADMIN_EMAIL, ADMIN_PASSWORD } = process.env;
-  if (ADMIN_EMAIL && ADMIN_PASSWORD) {
-    addUser.run("Admin", ADMIN_EMAIL.toLowerCase(), hashPassword(ADMIN_PASSWORD), "admin");
-  }
 
   // Demo accounts share a publicly known password, so production starts without them
   // (and without the demo restaurants they own).

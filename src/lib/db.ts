@@ -2,7 +2,7 @@ import "server-only";
 import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { seed } from "./seed";
+import { ensureAdmin, seed } from "./seed";
 import type { OrderStatus, PaymentMethod } from "./format";
 
 // On a server, point DATA_DIR at a persistent disk so the database and pictures survive redeploys.
@@ -177,6 +177,7 @@ function connection() {
       n: number;
     };
     if (n === 0) seed(conn);
+    ensureAdmin(conn);
     globalForDb.__db = conn;
   }
   return globalForDb.__db;

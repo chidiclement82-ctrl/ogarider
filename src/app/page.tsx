@@ -78,10 +78,16 @@ export default async function Home({
 
       {restaurants.length === 0 ? (
         <p className="card p-10 text-center text-stone-500">
-          No restaurants match your search.{" "}
-          <Link href="/" className="font-medium text-orange-700 underline">
-            Clear filters
-          </Link>
+          {q || cuisine ? (
+            <>
+              No restaurants match your search.{" "}
+              <Link href="/" className="font-medium text-orange-700 underline">
+                Clear filters
+              </Link>
+            </>
+          ) : (
+            "Restaurants are coming soon. Please check back shortly."
+          )}
         </p>
       ) : (
         <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

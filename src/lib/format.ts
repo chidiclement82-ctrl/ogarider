@@ -38,7 +38,7 @@ export const ORDER_STEPS = [
 ] as const;
 
 export type OrderStatus = (typeof ORDER_STEPS)[number] | "cancelled";
-export type PaymentMethod = "online" | "cod";
+export type PaymentMethod = "online" | "cod" | "wallet";
 
 export const STATUS_LABEL: Record<OrderStatus, string> = {
   pending: "Waiting for restaurant",
@@ -75,6 +75,9 @@ export function orderStyle(order: Payable) {
 
 export function paymentLabel(order: Payable) {
   if (order.payment_method === "cod") return "Pay on delivery";
+  if (order.payment_method === "wallet") {
+    return order.status === "cancelled" ? "Refunded to wallet" : "Paid from wallet";
+  }
   if (!order.paid) return "Online · not paid";
   return order.status === "cancelled" ? "Paid online · refund due" : "Paid online";
 }

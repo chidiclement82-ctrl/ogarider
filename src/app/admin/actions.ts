@@ -4,11 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { FormState } from "@/app/actions";
 import { requireAdmin } from "@/lib/auth";
-import { get, run, type MenuItem, type Order, type Restaurant } from "@/lib/db";
+import { change, get, run, transaction, type MenuItem, type Order, type Restaurant } from "@/lib/db";
 import { toKobo, validEmail } from "@/lib/format";
 import { moveOrder } from "@/lib/orders";
 import { hashPassword } from "@/lib/password";
 import { saveImage } from "@/lib/uploads";
+import { addWalletEntry, saveBankDetails, type Topup } from "@/lib/wallet";
 
 function text(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -201,4 +202,38 @@ export async function adminAdvanceOrder(formData: FormData) {
   const order = get<Order>("SELECT * FROM orders WHERE id = ?", Number(formData.get("orderId")));
   if (order) moveOrder(order, text(formData, "intent"));
   revalidatePath("/admin/orders");
+}
+
+// ---------- Wallet funding ----------
+
+export async function saveBank(_prev: FormState, formData: FormData): Promise<FormState> {
+  await requireAdmin();
+  const bankName = text(formData, "bankName");
+  const accountNumber = text(formData, "accountNumber").replace(/\s/g, "");
+  const accountName = text(formData, "accountName");
+  const values = { bankName, accountNumber, accountName };
+  if (!bankName || !accountName) return { error: "Enter the bank name and the account name.", values };
+  if (!/^\d{10}$/.test(accountNumber)) {
+    return { error: "A Nigerian account number has exactly 10 digits.", values };
+  }
+  saveBankDetails(values);
+  revalidatePath("/", "layout");
+  return { ok: "Saved. Customers now see this account on their wallet page.", values };
+}
+
+/** Confirms or rejects a customer's reported transfer. Approving credits their wallet once. */
+export async function decideTopup(formData: FormData) {
+  await requireAdmin();
+  const topup = get<Topup>("SELECT * FROM topups WHERE id = ?", Number(formData.get("topupId")));
+  if (!topup) return;
+  const approve = text(formData, "intent") === "approve";
+  transaction(() => {
+    const decided = change(
+      "UPDATE topups SET status = ? WHERE id = ? AND status = 'pending'",
+      approve ? "approved" : "rejected",
+      topup.id,
+    );
+    if (decided && approve) addWalletEntry(topup.user_id, topup.amount, "topup", "Bank transfer");
+  });
+  revalidatePath("/", "layout");
 }

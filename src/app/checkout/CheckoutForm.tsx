@@ -10,9 +10,11 @@ import { money } from "@/lib/format";
 export function CheckoutForm({
   signedIn,
   onlineAvailable,
+  walletBalance,
 }: {
   signedIn: boolean;
   onlineAvailable: boolean;
+  walletBalance: number;
 }) {
   const cart = useCart();
   const [state, action, pending] = useActionState<FormState, FormData>(placeOrder, {});
@@ -41,6 +43,7 @@ export function CheckoutForm({
   }
 
   const subtotal = cartSubtotal(cart);
+  const walletEnough = walletBalance >= subtotal + cart.deliveryFee;
 
   return (
     <div className="grid gap-6 md:grid-cols-[1fr_340px]">
@@ -73,6 +76,38 @@ export function CheckoutForm({
         <fieldset>
           <legend className="label">Payment</legend>
           <div className="space-y-2">
+            {signedIn && (
+              <label
+                className={`flex items-start gap-3 rounded-xl border border-stone-300 p-3.5 has-checked:border-orange-500 has-checked:bg-orange-50 ${
+                  walletEnough ? "cursor-pointer" : "opacity-60"
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="wallet"
+                  disabled={!walletEnough}
+                  className="mt-1 accent-orange-600"
+                />
+                <span>
+                  <span className="block text-sm font-medium">
+                    Pay from wallet · {money(walletBalance)}
+                  </span>
+                  <span className="block text-xs text-stone-500">
+                    {walletEnough ? (
+                      "The total is taken from your wallet balance."
+                    ) : (
+                      <>
+                        Not enough for this order.{" "}
+                        <Link href="/wallet" className="font-medium text-orange-700 underline">
+                          Fund your wallet
+                        </Link>
+                      </>
+                    )}
+                  </span>
+                </span>
+              </label>
+            )}
             {onlineAvailable && (
               <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-stone-300 p-3.5 has-checked:border-orange-500 has-checked:bg-orange-50">
                 <input type="radio" name="paymentMethod" value="online" defaultChecked className="mt-1 accent-orange-600" />

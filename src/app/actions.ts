@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSession, destroySession, getUser, requireOwner } from "@/lib/auth";
 import { all, get, run, transaction, type MenuItem, type Order, type Restaurant } from "@/lib/db";
-import { awaitingPayment, toKobo, validEmail, validPhone } from "@/lib/format";
-import { moveOrder } from "@/lib/orders";
+import { awaitingPayment, money, toKobo, validEmail, validPhone } from "@/lib/format";
+import { cancelPending, moveOrder } from "@/lib/orders";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import {
   onlinePaymentAvailable,
@@ -15,6 +15,7 @@ import {
 } from "@/lib/paystack";
 import { DEMO_ADMIN_EMAIL, DEMO_CUSTOMER_EMAIL, DEMO_RESTAURANT_EMAIL } from "@/lib/seed";
 import { setupAllowed } from "@/lib/setup";
+import { addWalletEntry, bankDetails, walletBalance } from "@/lib/wallet";
 
 export type FormState = {
   error?: string;
@@ -129,7 +130,8 @@ export async function placeOrder(_prev: FormState, formData: FormData): Promise<
   const address = text(formData, "address");
   const phone = text(formData, "phone");
   const notes = text(formData, "notes").slice(0, 500);
-  const paymentMethod = text(formData, "paymentMethod") === "cod" ? "cod" : "online";
+  const chosen = text(formData, "paymentMethod");
+  const paymentMethod = chosen === "cod" || chosen === "wallet" ? chosen : "online";
   if (paymentMethod === "online" && !onlinePaymentAvailable()) {
     return { error: "Online payment is not available right now. Choose pay on delivery." };
   }
@@ -172,21 +174,32 @@ export async function placeOrder(_prev: FormState, formData: FormData): Promise<
   }
 
   const subtotal = items.reduce((sum, { item, qty }) => sum + item.price * qty, 0);
+  const total = subtotal + restaurant.delivery_fee;
+  const balance = paymentMethod === "wallet" ? walletBalance(user.id) : 0;
+  if (paymentMethod === "wallet" && balance < total) {
+    return {
+      error: `Your wallet has ${money(balance)} but this order is ${money(total)}. Fund your wallet or choose another payment.`,
+    };
+  }
+
+  // Nothing runs between the balance check above and the charge below (the database
+  // driver is synchronous), so a wallet cannot be spent twice.
   const orderId = transaction(() => {
     const id = run(
       `INSERT INTO orders
          (user_id, restaurant_id, subtotal, delivery_fee, total, address, phone, notes,
-          payment_method, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          payment_method, paid, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       user.id,
       restaurant.id,
       subtotal,
       restaurant.delivery_fee,
-      subtotal + restaurant.delivery_fee,
+      total,
       address,
       phone,
       notes,
       paymentMethod,
+      paymentMethod === "wallet" ? 1 : 0,
       new Date().toISOString(),
     );
     for (const { item, qty } of items) {
@@ -199,10 +212,11 @@ export async function placeOrder(_prev: FormState, formData: FormData): Promise<
         qty,
       );
     }
+    if (paymentMethod === "wallet") addWalletEntry(user.id, -total, "order", `Order #${id}`);
     return id;
   });
 
-  revalidatePath("/orders");
+  revalidatePath("/", "layout");
   if (paymentMethod === "online") {
     try {
       const order = get<Order>("SELECT * FROM orders WHERE id = ?", orderId)!;
@@ -243,18 +257,53 @@ export async function simulatePayment(formData: FormData) {
   redirect(`/orders/${order.id}${success ? "" : "?pay=failed"}`);
 }
 
-/** Customers can cancel until the order is paid for or accepted; after that the restaurant decides. */
+/**
+ * Customers can cancel while the restaurant has not accepted yet. Wallet orders are
+ * refunded to the wallet at once; orders paid through Paystack cannot be cancelled here.
+ */
 export async function cancelOrder(formData: FormData) {
   const user = await getUser();
   if (!user) return;
   const id = Number(formData.get("orderId"));
-  run(
-    `UPDATE orders SET status = 'cancelled'
-      WHERE id = ? AND user_id = ? AND status = 'pending' AND paid = 0`,
-    id,
+  const order = get<Order>("SELECT * FROM orders WHERE id = ? AND user_id = ?", id, user.id);
+  if (order && (!order.paid || order.payment_method === "wallet")) cancelPending(order);
+  revalidatePath("/", "layout");
+}
+
+// ---------- Wallet ----------
+
+/** The customer reports a bank transfer; an admin confirms it before the wallet is credited. */
+export async function requestTopup(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await getUser();
+  if (!user) return { error: "Please sign in first." };
+  if (!bankDetails()) return { error: "Wallet funding is not available yet." };
+
+  const amount = toKobo(formData.get("amount"));
+  const senderName = text(formData, "senderName").slice(0, 100);
+  const values = { amount: text(formData, "amount"), senderName };
+  if (!(amount >= 10000 && amount <= 100000000)) {
+    return { error: "Enter an amount between ₦100 and ₦1,000,000.", values };
+  }
+  if (senderName.length < 3) {
+    return { error: "Enter the name on the bank account you sent from.", values };
+  }
+  const { pending } = get<{ pending: number }>(
+    "SELECT COUNT(*) AS pending FROM topups WHERE user_id = ? AND status = 'pending'",
     user.id,
+  )!;
+  if (pending >= 3) {
+    return { error: "You already have 3 transfers waiting to be confirmed. Please wait for those." };
+  }
+
+  run(
+    "INSERT INTO topups (user_id, amount, sender_name, created_at) VALUES (?, ?, ?, ?)",
+    user.id,
+    amount,
+    senderName,
+    new Date().toISOString(),
   );
-  revalidatePath(`/orders/${id}`);
+  revalidatePath("/", "layout");
+  return { ok: "Thank you. Your wallet will be credited as soon as we confirm the transfer." };
 }
 
 // ---------- Restaurant dashboard ----------

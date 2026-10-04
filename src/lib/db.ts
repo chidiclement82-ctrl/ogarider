@@ -133,13 +133,35 @@ CREATE TABLE IF NOT EXISTS order_items (
   price INTEGER NOT NULL,
   qty INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+-- A customer's claim that they transferred money to the business bank account.
+CREATE TABLE IF NOT EXISTS topups (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  amount INTEGER NOT NULL,
+  sender_name TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS wallet_transactions (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id),
+  amount INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_wallet_user ON wallet_transactions(user_id);
 CREATE INDEX IF NOT EXISTS idx_menu_restaurant ON menu_items(restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_orders_user ON orders(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_restaurant ON orders(restaurant_id);
 CREATE INDEX IF NOT EXISTS idx_orders_payment_ref ON orders(payment_ref);
 `;
 
-/** Orders a restaurant should see: paid online, or pay-on-delivery. */
+/** Orders a restaurant should see: paid (online or from the wallet), or pay-on-delivery. */
 export const VISIBLE_TO_RESTAURANT = "(o.payment_method = 'cod' OR o.paid = 1)";
 
 // Kept on globalThis so dev hot-reloads reuse one connection.
@@ -174,6 +196,11 @@ export function get<T>(sql: string, ...params: SQLInputValue[]) {
 /** Runs a write and returns the new row id. */
 export function run(sql: string, ...params: SQLInputValue[]) {
   return Number(connection().prepare(sql).run(...params).lastInsertRowid);
+}
+
+/** Runs a write and returns how many rows it changed. */
+export function change(sql: string, ...params: SQLInputValue[]) {
+  return Number(connection().prepare(sql).run(...params).changes);
 }
 
 export function transaction<T>(fn: () => T): T {

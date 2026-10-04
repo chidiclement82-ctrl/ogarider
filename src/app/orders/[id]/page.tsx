@@ -30,6 +30,7 @@ export default async function OrderPage({
   const items = all<OrderItem>("SELECT * FROM order_items WHERE order_id = ?", order.id);
   const cancelled = order.status === "cancelled";
   const unpaid = awaitingPayment(order);
+  const cancellable = !order.paid || order.payment_method === "wallet";
   const step = cancelled || unpaid ? -1 : ORDER_STEPS.indexOf(order.status as (typeof ORDER_STEPS)[number]);
   const live = !cancelled && order.status !== "delivered";
 
@@ -64,7 +65,11 @@ export default async function OrderPage({
         {cancelled ? (
           <p className="mt-4 rounded-xl bg-stone-100 px-4 py-3 text-sm text-stone-600">
             This order was cancelled.
-            {order.paid ? " Your payment will be refunded." : " You have not been charged."}
+            {!order.paid
+              ? " You have not been charged."
+              : order.payment_method === "wallet"
+                ? " The money is back in your wallet."
+                : " Your payment will be refunded."}
           </p>
         ) : (
           <ol className="mt-6 grid grid-cols-5 gap-2">
@@ -81,7 +86,7 @@ export default async function OrderPage({
           </ol>
         )}
 
-        {order.status === "pending" && !order.paid && (
+        {order.status === "pending" && cancellable && (
           <div className="mt-6 flex flex-wrap gap-2">
             {unpaid && (
               <form action={payNow}>
@@ -89,7 +94,7 @@ export default async function OrderPage({
                 <button className="btn">Pay {money(order.total)} now</button>
               </form>
             )}
-            {!order.paid && (
+            {cancellable && (
               <form action={cancelOrder}>
                 <input type="hidden" name="orderId" value={order.id} />
                 <button className="btn-ghost">Cancel order</button>

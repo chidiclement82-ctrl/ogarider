@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { logout } from "@/app/actions";
 import { getUser } from "@/lib/auth";
-import { APP_NAME } from "@/lib/format";
+import { APP_NAME, money } from "@/lib/format";
+import { walletBalance } from "@/lib/wallet";
 import { CartButton } from "./CartButton";
 
 export async function Header() {
@@ -29,6 +30,11 @@ export async function Header() {
         {user && (
           <Link href="/orders" className={navLink}>
             Orders
+          </Link>
+        )}
+        {user && (
+          <Link href="/wallet" className={navLink}>
+            Wallet <span className="text-stone-500">{money(walletBalance(user.id))}</span>
           </Link>
         )}
         <CartButton />

@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ogarider
 
-## Getting Started
+A food-ordering app for Nigeria: customers order from any restaurant and pay online or on delivery,
+restaurants fulfil the orders, and an admin manages restaurants, menus, prices and pictures.
 
-First, run the development server:
+## Run
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. Requires Node 22.5+ (uses the built-in `node:sqlite`).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The database is created and seeded at `data/app.db` on first run; uploaded pictures go to
+`data/uploads`. Delete the `data` folder to reset everything.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The sign-in page has one-click demo accounts for customer, restaurant and admin (development
+only); they are defined in `src/lib/seed.ts`.
 
-## Learn More
+## Setup
 
-To learn more about Next.js, take a look at the following resources:
+Copy `.env.example` to `.env.local` and fill it in:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `PAYSTACK_SECRET_KEY` — from the Paystack dashboard. Without it, development shows a payment
+  simulator and production refuses online payment.
+- `APP_URL` — the public address of the app, used for the payment return link.
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` — your real admin account, created when the database is first
+  set up (delete `data` and restart to apply).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+In the Paystack dashboard, set the webhook URL to `<APP_URL>/api/paystack/webhook`.
 
-## Deploy on Vercel
+## Layout
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `src/lib/db.ts` — schema and query helpers
+- `src/lib/seed.ts` — demo restaurants, menus and accounts
+- `src/lib/auth.ts` — cookie sessions and role checks
+- `src/lib/paystack.ts` — start and verify online payments
+- `src/lib/uploads.ts` — picture uploads
+- `src/lib/cart.ts` — browser cart (localStorage)
+- `src/lib/format.ts` — app name, currency, order statuses
+- `src/app/actions.ts` — customer and restaurant actions
+- `src/app/admin/` — admin site and its actions
+- `src/app/` — pages: home, `restaurants/[id]`, `checkout`, `orders`, `dashboard`, `pay`
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Going live
+
+The app keeps its database and uploaded pictures on disk, so it needs a host with a
+**persistent disk** (Railway, Render, Fly.io or any VPS). Serverless hosts without a disk,
+such as Vercel, will lose data.
+
+1. Push this project to a GitHub repository and connect it to the host. The included
+   `Dockerfile` builds and runs it.
+2. Attach a persistent disk mounted at `/data`.
+3. Set these variables on the host: `PAYSTACK_SECRET_KEY` (live key), `APP_URL`
+   (your https address), `ADMIN_EMAIL`, `ADMIN_PASSWORD`. `DATA_DIR=/data` is already set
+   by the Dockerfile.
+4. In the Paystack dashboard, set the webhook URL to `<APP_URL>/api/paystack/webhook`.
+
+A live server starts empty: no demo restaurants and no demo accounts, only the admin from
+`ADMIN_EMAIL` / `ADMIN_PASSWORD`. The setup page and payment simulator are off. Do not copy
+your local `data` folder to the server; it contains the demo accounts.

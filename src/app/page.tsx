@@ -1,69 +1,119 @@
-import Image from "next/image";
+import Link from "next/link";
+import { Picture } from "@/components/Picture";
+import { all, type Restaurant } from "@/lib/db";
+import { money } from "@/lib/format";
 
-export default function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; cuisine?: string }>;
+}) {
+  const { q = "", cuisine = "" } = await searchParams;
+  const term = `%${q.trim()}%`;
+
+  const cuisines = all<{ cuisine: string }>(
+    "SELECT DISTINCT cuisine FROM restaurants WHERE archived = 0 ORDER BY cuisine",
+  ).map((r) => r.cuisine);
+
+  // Matches the restaurant itself or any dish on its menu.
+  const restaurants = all<Restaurant>(
+    `SELECT r.* FROM restaurants r
+      WHERE r.archived = 0
+        AND (? = '' OR r.cuisine = ?)
+        AND (r.name LIKE ? OR r.cuisine LIKE ? OR EXISTS (
+              SELECT 1 FROM menu_items m WHERE m.restaurant_id = r.id AND m.name LIKE ?))
+      ORDER BY r.is_open DESC, r.rating DESC`,
+    cuisine,
+    cuisine,
+    term,
+    term,
+    term,
+  );
+
+  const chip = (active: boolean) =>
+    `rounded-full border px-4 py-1.5 text-sm font-medium transition ${
+      active
+        ? "border-stone-900 bg-stone-900 text-white"
+        : "border-stone-300 bg-white text-stone-700 hover:bg-stone-100"
+    }`;
+  const href = (c: string) => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (c) params.set("cuisine", c);
+    const qs = params.toString();
+    return qs ? `/?${qs}` : "/";
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+    <div className="space-y-8">
+      <section className="rounded-3xl bg-orange-600 px-6 py-10 text-white sm:px-10">
+        <h1 className="max-w-xl text-3xl font-bold tracking-tight sm:text-4xl">
+          Any food, from any restaurant, delivered to your door.
+        </h1>
+        <p className="mt-2 text-orange-100">Pick a restaurant, fill your cart, track your order.</p>
+        <form action="/" className="mt-6 flex max-w-xl gap-2">
+          {cuisine && <input type="hidden" name="cuisine" value={cuisine} />}
+          <input
+            name="q"
+            defaultValue={q}
+            placeholder="Search restaurants or dishes"
+            className="input border-transparent text-stone-900"
+          />
+          <button className="rounded-xl bg-stone-900 px-5 text-sm font-semibold hover:bg-stone-800">
+            Search
+          </button>
+        </form>
+      </section>
+
+      <nav className="flex flex-wrap gap-2" aria-label="Cuisine">
+        <Link href={href("")} className={chip(!cuisine)}>
+          All
+        </Link>
+        {cuisines.map((c) => (
+          <Link key={c} href={href(c)} className={chip(c === cuisine)}>
+            {c}
+          </Link>
+        ))}
+      </nav>
+
+      {restaurants.length === 0 ? (
+        <p className="card p-10 text-center text-stone-500">
+          No restaurants match your search.{" "}
+          <Link href="/" className="font-medium text-orange-700 underline">
+            Clear filters
+          </Link>
+        </p>
+      ) : (
+        <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {restaurants.map((r) => (
+            <li key={r.id}>
+              <Link
+                href={`/restaurants/${r.id}`}
+                className="card group block overflow-hidden transition hover:-translate-y-0.5 hover:shadow-lg"
+              >
+                <div className="relative">
+                  <Picture image={r.image} emoji={r.emoji} color={r.color} className="h-36 w-full text-6xl" />
+                  {!r.is_open && (
+                    <span className="absolute left-3 top-3 rounded-full bg-stone-900 px-2.5 py-1 text-xs font-medium text-white">
+                      Closed
+                    </span>
+                  )}
+                </div>
+                <div className="p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <h2 className="font-semibold">{r.name}</h2>
+                    <span className="shrink-0 text-sm font-medium">★ {r.rating.toFixed(1)}</span>
+                  </div>
+                  <p className="mt-0.5 line-clamp-1 text-sm text-stone-500">{r.description}</p>
+                  <p className="mt-3 text-xs text-stone-600">
+                    {r.cuisine} · {r.eta_minutes} min · {money(r.delivery_fee)} delivery
+                  </p>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

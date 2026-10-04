@@ -36,7 +36,7 @@ export default async function MenuPage() {
                 </p>
                 <p className="text-sm text-stone-500">{item.category}</p>
               </div>
-              <form action={updateMenuItem} className="flex items-center gap-2">
+              <form action={updateMenuItem} className="flex flex-wrap items-center gap-2">
                 <input type="hidden" name="itemId" value={item.id} />
                 <input
                   name="price"

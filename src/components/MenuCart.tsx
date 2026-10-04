@@ -71,7 +71,7 @@ export function MenuCart({ restaurant }: { restaurant: RestaurantRef }) {
       {mine && (
         <Link
           href="/checkout"
-          className="btn fixed inset-x-4 bottom-4 z-10 justify-between py-3.5 shadow-lg lg:hidden"
+          className="btn fixed inset-x-4 bottom-20 z-10 justify-between py-3.5 shadow-lg sm:bottom-4 lg:hidden"
         >
           <span>View cart · {cartCount(cart)}</span>
           <span>{money(subtotal)}</span>

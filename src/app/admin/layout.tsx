@@ -12,7 +12,10 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   const tab = "rounded-full px-4 py-1.5 text-sm font-medium text-stone-700 hover:bg-stone-200";
   return (
     <div className="space-y-6">
-      <nav className="flex flex-wrap items-center gap-1 border-b border-stone-200 pb-4" aria-label="Admin">
+      <nav
+        className="-mx-4 flex items-center gap-1 overflow-x-auto whitespace-nowrap border-b border-stone-200 px-4 pb-4"
+        aria-label="Admin"
+      >
         <span className="mr-3 text-xs font-semibold uppercase tracking-wide text-stone-500">Admin</span>
         <Link href="/admin" className={tab}>
           Restaurants
@@ -31,7 +34,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
         <Link href="/admin/settings" className={tab}>
           Bank account
         </Link>
-        <Link href="/admin/restaurants/new" className="btn ml-auto">
+        <Link href="/admin/restaurants/new" className="btn ml-auto shrink-0">
           + Add restaurant
         </Link>
       </nav>

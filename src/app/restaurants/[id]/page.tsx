@@ -26,7 +26,7 @@ export default async function RestaurantPage({ params }: { params: Promise<{ id:
         ← All restaurants
       </Link>
 
-      <header className="card flex items-center gap-5 p-5">
+      <header className="card flex items-center gap-4 p-4 sm:gap-5 sm:p-5">
         <Picture
           image={restaurant.image}
           emoji={restaurant.emoji}
@@ -34,7 +34,7 @@ export default async function RestaurantPage({ params }: { params: Promise<{ id:
           className="size-20 shrink-0 rounded-2xl text-4xl"
         />
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{restaurant.name}</h1>
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{restaurant.name}</h1>
           <p className="text-sm text-stone-500">{restaurant.description}</p>
           <p className="mt-1.5 text-sm text-stone-700">
             ★ {restaurant.rating.toFixed(1)} · {restaurant.cuisine} · {restaurant.eta_minutes} min ·{" "}
@@ -61,7 +61,7 @@ export default async function RestaurantPage({ params }: { params: Promise<{ id:
                 {items
                   .filter((i) => i.category === category)
                   .map((item) => (
-                    <li key={item.id} className="flex items-center gap-4 p-4">
+                    <li key={item.id} className="flex items-center gap-3 p-3 sm:gap-4 sm:p-4">
                       <Picture
                         image={item.image}
                         emoji={item.emoji}

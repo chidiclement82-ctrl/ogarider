@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Header } from "@/components/Header";
 import { APP_NAME } from "@/lib/format";
@@ -19,6 +19,11 @@ export const metadata: Metadata = {
   description: "Order food from any restaurant and track it to your door.",
 };
 
+export const viewport: Viewport = {
+  themeColor: "#ea580c",
+  viewportFit: "cover",
+};
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
@@ -27,8 +32,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col font-sans">
         <Header />
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">{children}</main>
-        <footer className="border-t border-stone-200 py-6 text-center text-xs text-stone-500">
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-5 sm:py-8">{children}</main>
+        <footer className="border-t border-stone-200 pb-24 pt-6 text-center text-xs text-stone-500 sm:pb-6">
           © {new Date().getFullYear()} {APP_NAME}
         </footer>
       </body>

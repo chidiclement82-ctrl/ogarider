@@ -43,3 +43,6 @@ next-env.d.ts
 
 # local database
 /data
+
+# QR code for opening the live site on a phone
+/ogarider-qr.png

@@ -59,7 +59,7 @@ export default async function FundingPage() {
                     {t.customer_name} · {t.email} · {timeAgo(t.created_at)}
                   </p>
                 </div>
-                <form action={decideTopup} className="flex gap-2">
+                <form action={decideTopup} className="flex w-full gap-2 sm:w-auto [&>button]:flex-1">
                   <input type="hidden" name="topupId" value={t.id} />
                   <button name="intent" value="reject" className="btn-ghost">
                     Not received

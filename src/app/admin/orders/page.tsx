@@ -53,7 +53,7 @@ export default async function AdminOrdersPage() {
                   {o.customer_name} · {o.phone} · {o.address} · {timeAgo(o.created_at)}
                 </p>
               </div>
-              <div className="text-right">
+              <div className="sm:text-right">
                 <p className="font-semibold tabular-nums">{money(o.total)}</p>
                 <p className="text-xs text-stone-500">{paymentLabel(o)}</p>
               </div>
@@ -61,7 +61,7 @@ export default async function AdminOrdersPage() {
                 {orderLabel(o)}
               </span>
               {NEXT_ACTION[o.status] && !awaitingPayment(o) && (
-                <form action={adminAdvanceOrder} className="flex gap-2">
+                <form action={adminAdvanceOrder} className="flex w-full gap-2 sm:w-auto [&>button]:flex-1">
                   <input type="hidden" name="orderId" value={o.id} />
                   {o.status === "pending" && (
                     <button name="intent" value="reject" className="btn-ghost">

@@ -45,15 +45,20 @@ export default async function EditRestaurantPage({ params }: { params: Promise<{
 
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
-          <section className="card p-6">
+          <section className="card p-4 sm:p-6">
             <h2 className="mb-4 font-semibold">Details</h2>
             <RestaurantForm key={restaurant.image} restaurant={restaurant} />
           </section>
 
           <section>
-            <h2 className="mb-3 font-semibold">
-              Menu · {items.length} {items.length === 1 ? "dish" : "dishes"}
-            </h2>
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="font-semibold">
+                Menu · {items.length} {items.length === 1 ? "dish" : "dishes"}
+              </h2>
+              <a href="#add-dish" className="btn-ghost lg:hidden">
+                + Add a dish
+              </a>
+            </div>
             {items.length === 0 ? (
               <p className="card p-8 text-center text-stone-500">
                 No dishes yet. Add the first one with the form on this page.
@@ -63,7 +68,7 @@ export default async function EditRestaurantPage({ params }: { params: Promise<{
                 {items.map((item) => (
                   <li key={item.id}>
                     <details className="group">
-                      <summary className="flex cursor-pointer list-none items-center gap-4 p-4 hover:bg-stone-50">
+                      <summary className="flex cursor-pointer list-none items-center gap-3 p-3 hover:bg-stone-50 sm:gap-4 sm:p-4">
                         <Picture
                           image={item.image}
                           emoji={item.emoji}
@@ -103,7 +108,7 @@ export default async function EditRestaurantPage({ params }: { params: Promise<{
         </div>
 
         <aside className="h-fit space-y-6">
-          <section className="card p-6">
+          <section id="add-dish" className="card scroll-mt-20 p-4 sm:p-6">
             <h2 className="mb-4 font-semibold">Add a dish</h2>
             <MenuItemForm restaurantId={restaurant.id} categories={categories} />
           </section>

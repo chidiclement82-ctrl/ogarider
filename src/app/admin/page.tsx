@@ -77,7 +77,7 @@ export default async function AdminHome() {
                   {r.is_open ? "Open" : "Closed"}
                 </button>
               </form>
-              <Link href={`/admin/restaurants/${r.id}`} className="btn-ghost">
+              <Link href={`/admin/restaurants/${r.id}`} className="btn-ghost w-full sm:w-auto">
                 Edit details &amp; menu
               </Link>
             </li>

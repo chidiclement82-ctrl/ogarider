@@ -1,9 +1,19 @@
 "use server";
 
+import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createSession, destroySession, getUser, requireOwner } from "@/lib/auth";
-import { all, get, run, transaction, type MenuItem, type Order, type Restaurant } from "@/lib/db";
+import {
+  all,
+  change,
+  get,
+  run,
+  transaction,
+  type MenuItem,
+  type Order,
+  type Restaurant,
+} from "@/lib/db";
 import { awaitingPayment, money, toKobo, validEmail, validPhone } from "@/lib/format";
 import { cancelPending, moveOrder } from "@/lib/orders";
 import { hashPassword, verifyPassword } from "@/lib/password";
@@ -114,6 +124,57 @@ export async function demoLogin(formData: FormData) {
   if (!user) return;
   await createSession(user.id);
   redirect(homeFor(user.role, text(formData, "next")));
+}
+
+/**
+ * Deletes a customer's account by stripping everything personal from it. Order and
+ * payment rows stay (the business needs them for its records) but no longer identify anyone.
+ */
+export async function deleteAccount(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await getUser();
+  if (!user) return { error: "Please sign in first." };
+  if (user.role !== "customer") return { error: "This account is managed by the administrator." };
+
+  const row = get<{ password_hash: string }>("SELECT password_hash FROM users WHERE id = ?", user.id);
+  if (!row || !verifyPassword(String(formData.get("password") ?? ""), row.password_hash)) {
+    return { error: "That password is not correct." };
+  }
+
+  const { active } = get<{ active: number }>(
+    `SELECT COUNT(*) AS active FROM orders
+      WHERE user_id = ? AND status NOT IN ('delivered', 'cancelled')`,
+    user.id,
+  )!;
+  if (active > 0) {
+    return { error: "You have an order in progress. You can delete your account once it is delivered or cancelled." };
+  }
+  const { waiting } = get<{ waiting: number }>(
+    "SELECT COUNT(*) AS waiting FROM topups WHERE user_id = ? AND status = 'pending'",
+    user.id,
+  )!;
+  if (waiting > 0) {
+    return { error: "A wallet transfer is still waiting to be confirmed. Please try again after that." };
+  }
+  const balance = walletBalance(user.id);
+  if (balance > 0) {
+    return {
+      error: `Your wallet still has ${money(balance)}. Spend it or contact us for a refund before deleting your account.`,
+    };
+  }
+
+  transaction(() => {
+    change(
+      "UPDATE users SET name = 'Deleted user', email = ?, password_hash = ? WHERE id = ?",
+      `deleted-${user.id}-${randomBytes(4).toString("hex")}@deleted.invalid`,
+      hashPassword(randomBytes(24).toString("hex")),
+      user.id,
+    );
+    change("UPDATE orders SET address = '[deleted]', phone = '', notes = '' WHERE user_id = ?", user.id);
+    change("UPDATE topups SET sender_name = '' WHERE user_id = ?", user.id);
+    change("DELETE FROM sessions WHERE user_id = ?", user.id);
+  });
+  await destroySession();
+  redirect("/");
 }
 
 export async function logout() {

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import Link from "next/link";
 import { Header } from "@/components/Header";
 import { ServiceWorker } from "@/components/ServiceWorker";
 import { APP_NAME } from "@/lib/format";
@@ -38,7 +39,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <Header />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-5 sm:py-8">{children}</main>
         <footer className="border-t border-stone-200 pb-24 pt-6 text-center text-xs text-stone-500 sm:pb-6">
-          © {new Date().getFullYear()} {APP_NAME}
+          © {new Date().getFullYear()} {APP_NAME} ·{" "}
+          <Link href="/privacy" className="underline">
+            Privacy
+          </Link>{" "}
+          ·{" "}
+          <Link href="/account" className="underline">
+            Account
+          </Link>
         </footer>
       </body>
     </html>

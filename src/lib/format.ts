@@ -1,5 +1,8 @@
 export const APP_NAME = "Ogarider";
 
+// Shown on the privacy policy as the way to reach the business. Leave empty to hide it.
+export const SUPPORT_EMAIL = "";
+
 export const CURRENCY = "NGN";
 export const LOCALE = "en-NG";
 
